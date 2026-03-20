@@ -47,7 +47,8 @@ const DataStore = (() => {
         appliance_serials:    ['appliance serial numbers', 'appliance_serial_numbers'],
         last_delivery_date:   ['last delivery date', 'last_delivery_date'],
         delivery_status:      ['delivery status', 'delivery_status'],
-        secondary_delivery_status: ['secondary delivery status', 'secondary_delivery_status']
+        secondary_delivery_status: ['secondary delivery status', 'secondary_delivery_status'],
+        sales_rep:                ['sales rep', 'sales_rep', 'rep', 'assigned to', 'salesperson']
     };
 
     // DB columns (all text except lat/lng)
@@ -106,7 +107,6 @@ const DataStore = (() => {
 
             if (error) {
                 console.error('Load error:', JSON.stringify(error));
-                alert('Failed to load data from database: ' + (error.message || JSON.stringify(error)));
                 return [];
             }
 

@@ -25,11 +25,13 @@
         <input type="text" id="searchInput" placeholder="Search name, account #, address, phone..." />
     </div>
     <div class="topbar-right">
-        <button id="btnImport" title="Import CSV">Import CSV</button>
+        <button id="btnImport" title="Import Customers CSV">Import CSV</button>
+        <button id="btnImportLeads" title="Import Leads CSV" style="background:#e53935;">Import Leads</button>
         <button id="btnExport" title="Export CSV">Export CSV</button>
         <button id="btnAddCustomer" title="Add Customer">+ Add</button>
         <button id="btnClearData" title="Clear All Data" style="border-color:#f44336;color:#f44336;">Clear</button>
         <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" />
+        <input type="file" id="leadsFileInput" accept=".csv,.txt" style="display:none" />
     </div>
 </header>
 
@@ -67,6 +69,19 @@
             <select id="filterTankSize">
                 <option value="">All Sizes</option>
             </select>
+
+            <label for="filterSalesRep">Sales Rep</label>
+            <select id="filterSalesRep">
+                <option value="">All Reps</option>
+            </select>
+
+            <div style="margin-top:12px;padding-top:8px;border-top:1px solid #ddd;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="toggleLeads" checked />
+                    <span style="color:#e53935;font-weight:600;">Show Leads</span>
+                    <span id="leadCount" style="color:#aaa;font-size:12px;"></span>
+                </label>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -110,6 +125,8 @@
     <div class="legend-item"><span class="legend-dot" style="background:#ff5722"></span> Commercial - Other</div>
     <div class="legend-item"><span class="legend-dot" style="background:#9c27b0"></span> Forklift</div>
     <div class="legend-item"><span class="legend-dot" style="background:#999"></span> Other</div>
+    <div class="legend-title" style="margin-top:8px;">Leads</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#e53935"></span> Lead / Target</div>
 </div>
 
 <!-- Add/Edit Customer Modal -->
@@ -234,6 +251,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data.js"></script>
+<script src="js/leads.js"></script>
 <script src="js/popup.js"></script>
 <script src="js/app.js"></script>
 </body>

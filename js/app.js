@@ -7,10 +7,11 @@ const App = (() => {
     const CAYMAN_CENTER = [19.32, -81.24];
     const CAYMAN_ZOOM = 11;
 
-    let map, markerCluster, markers = {};
+    let map, markerCluster, leadMarkerGroup, markers = {}, leadMarkers = {};
     let placeMode = null;
     let currentFilters = {};
     let editingCustomerId = null;
+    let showLeads = true;
 
     // Color by Customer Type
     const TYPE_COLORS = {
@@ -65,13 +66,26 @@ const App = (() => {
             chunkInterval: 100, chunkDelay: 10
         });
         map.addLayer(markerCluster);
+
+        leadMarkerGroup = L.markerClusterGroup({
+            maxClusterRadius: 50, spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false, chunkedLoading: true,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                return L.divIcon({
+                    html: `<div style="background:#e53935;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);">${count}</div>`,
+                    className: 'lead-cluster', iconSize: [34, 34]
+                });
+            }
+        });
+        map.addLayer(leadMarkerGroup);
         map.on('click', onMapClick);
 
         bindEvents();
 
         // Load data from Supabase
         try {
-            await DataStore.load();
+            await Promise.all([DataStore.load(), LeadStore.load()]);
             refreshAll();
             await refreshLastUpload();
         } catch (err) {
@@ -92,9 +106,15 @@ const App = (() => {
                 refreshAll();
             }
         });
+        document.getElementById('btnImportLeads').addEventListener('click', () => document.getElementById('leadsFileInput').click());
+        document.getElementById('leadsFileInput').addEventListener('change', handleLeadsImport);
+        document.getElementById('toggleLeads').addEventListener('change', (e) => {
+            showLeads = e.target.checked;
+            refreshLeadMarkers();
+        });
         document.getElementById('searchInput').addEventListener('input', debounce(onSearch, 300));
 
-        ['filterActive', 'filterCustomerType', 'filterZone', 'filterPricing', 'filterTankSize'].forEach(id => {
+        ['filterActive', 'filterCustomerType', 'filterZone', 'filterPricing', 'filterTankSize', 'filterSalesRep'].forEach(id => {
             document.getElementById(id).addEventListener('change', onFilterChange);
         });
 
@@ -140,6 +160,35 @@ const App = (() => {
         e.target.value = '';
     }
 
+    // ===== Leads Import =====
+    async function handleLeadsImport(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const existing = LeadStore.getAll().length;
+        if (existing > 0 && !confirm(`This will replace the ${existing} leads currently loaded.\n\nProceed with import?`)) {
+            e.target.value = '';
+            return;
+        }
+
+        document.getElementById('leadCount').textContent = '(importing...)';
+
+        try {
+            const result = await LeadStore.importCSV(file, (msg) => {
+                document.getElementById('leadCount').textContent = `(${msg})`;
+            });
+            alert(
+                `Leads Import Complete!\n\n` +
+                `Total imported: ${result.imported}\n` +
+                `With GPS: ${result.mapped}`
+            );
+            refreshAll();
+        } catch (err) {
+            alert('Leads import failed: ' + err.message);
+        }
+        e.target.value = '';
+    }
+
     // ===== Last Upload =====
     async function refreshLastUpload() {
         const upload = await DataStore.getLastUpload();
@@ -157,6 +206,7 @@ const App = (() => {
     function refreshAll() {
         refreshFilters();
         refreshMarkers();
+        refreshLeadMarkers();
         refreshStats();
         refreshUnmapped();
         refreshCustomerList();
@@ -167,6 +217,12 @@ const App = (() => {
         populateFilter('filterZone', DataStore.getUniqueValues('zone'), 'All Zones');
         populateFilter('filterPricing', DataStore.getUniqueValues('pricing_descriptions'), 'All Pricing');
         populateFilter('filterTankSize', DataStore.getUniqueValues('actual_tank_sizes'), 'All Sizes');
+
+        // Sales Rep: combine reps from both customers and leads
+        const reps = new Set();
+        DataStore.getUniqueValues('sales_rep').forEach(r => reps.add(r));
+        LeadStore.getUniqueValues('sales_rep').forEach(r => reps.add(r));
+        populateFilter('filterSalesRep', [...reps].sort(), 'All Reps');
     }
 
     function populateFilter(selectId, values, defaultLabel) {
@@ -189,9 +245,11 @@ const App = (() => {
             customer_type: document.getElementById('filterCustomerType').value,
             zone: document.getElementById('filterZone').value,
             pricing: document.getElementById('filterPricing').value,
-            tank_size: document.getElementById('filterTankSize').value
+            tank_size: document.getElementById('filterTankSize').value,
+            sales_rep: document.getElementById('filterSalesRep').value
         };
         refreshMarkers();
+        refreshLeadMarkers();
         refreshCustomerList();
         refreshStats();
     }
@@ -206,6 +264,7 @@ const App = (() => {
             if (currentFilters.zone && c.zone !== currentFilters.zone) return false;
             if (currentFilters.pricing && c.pricing_descriptions !== currentFilters.pricing) return false;
             if (currentFilters.tank_size && c.actual_tank_sizes !== currentFilters.tank_size) return false;
+            if (currentFilters.sales_rep && c.sales_rep !== currentFilters.sales_rep) return false;
             return true;
         });
     }
@@ -224,6 +283,51 @@ const App = (() => {
             arr.push(marker);
         });
         markerCluster.addLayers(arr);
+    }
+
+    function refreshLeadMarkers() {
+        leadMarkerGroup.clearLayers();
+        leadMarkers = {};
+        if (!showLeads) {
+            document.getElementById('leadCount').textContent = '(hidden)';
+            return;
+        }
+        const query = document.getElementById('searchInput').value;
+        let filtered = query ? LeadStore.search(query) : LeadStore.getAll();
+        if (currentFilters.sales_rep) {
+            filtered = filtered.filter(l => l.sales_rep === currentFilters.sales_rep);
+        }
+        filtered = filtered.filter(l => l.latitude && l.longitude);
+        const arr = [];
+        filtered.forEach(l => {
+            const marker = L.marker([l.latitude, l.longitude], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="width:14px;height:14px;background:#e53935;border:2.5px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [14, 14], iconAnchor: [7, 7], popupAnchor: [0, -10]
+                })
+            });
+            const tooltipHtml = `<strong>${esc(l.display_name)}</strong><br>${esc(l.full_address || '')}`;
+            marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -10] });
+
+            const popupHtml = `<div style="font-family:sans-serif;min-width:200px;">
+                <div style="background:#e53935;color:#fff;padding:6px 10px;margin:-10px -10px 8px;border-radius:4px 4px 0 0;font-weight:bold;">LEAD</div>
+                <strong>${esc(l.display_name)}</strong><br>
+                ${l.contact_name ? '<em>' + esc(l.contact_name) + '</em><br>' : ''}
+                ${l.full_address ? esc(l.full_address) + '<br>' : ''}
+                ${l.phone ? 'Phone: ' + esc(l.phone) + '<br>' : ''}
+                ${l.email ? 'Email: ' + esc(l.email) + '<br>' : ''}
+                ${l.sales_rep ? 'Rep: ' + esc(l.sales_rep) + '<br>' : ''}
+                ${l.status ? 'Status: ' + esc(l.status) + '<br>' : ''}
+                ${l.lead_source ? 'Source: ' + esc(l.lead_source) + '<br>' : ''}
+                ${l.notes ? '<hr style="margin:4px 0">' + esc(l.notes) : ''}
+            </div>`;
+            marker.bindPopup(popupHtml, { maxWidth: 300, closeButton: true });
+            leadMarkers[l.id] = marker;
+            arr.push(marker);
+        });
+        leadMarkerGroup.addLayers(arr);
+        document.getElementById('leadCount').textContent = `(${LeadStore.getAll().length})`;
     }
 
     function refreshStats() {
@@ -287,7 +391,7 @@ const App = (() => {
         } else { enterPlaceMode(c); }
     }
 
-    function onSearch() { refreshMarkers(); refreshCustomerList(); refreshStats(); }
+    function onSearch() { refreshMarkers(); refreshLeadMarkers(); refreshCustomerList(); refreshStats(); }
 
     // ===== Place Mode =====
     function enterPlaceMode(c) {
