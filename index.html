@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Gas — Customer Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Top Bar -->
+<header id="topbar">
+    <div class="topbar-left">
+        <h1>Clean Gas</h1>
+        <span class="subtitle">Customer Map — Cayman Islands</span>
+    </div>
+    <div class="topbar-center">
+        <input type="text" id="searchInput" placeholder="Search name, account #, address, phone..." />
+    </div>
+    <div class="topbar-right">
+        <button id="btnImport" title="Import CSV">Import CSV</button>
+        <button id="btnExport" title="Export CSV">Export CSV</button>
+        <button id="btnAddCustomer" title="Add Customer">+ Add</button>
+        <button id="btnClearData" title="Clear All Data" style="border-color:#f44336;color:#f44336;">Clear</button>
+        <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" />
+    </div>
+</header>
+
+<!-- Main Content -->
+<div id="main">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+        <!-- Filter panel -->
+        <div class="sidebar-section">
+            <h3>Filters</h3>
+
+            <label for="filterActive">Status</label>
+            <select id="filterActive">
+                <option value="">All</option>
+                <option value="active" selected>Active Only</option>
+                <option value="inactive">Inactive Only</option>
+            </select>
+
+            <label for="filterCustomerType">Customer Type</label>
+            <select id="filterCustomerType">
+                <option value="">All Types</option>
+            </select>
+
+            <label for="filterZone">Zone</label>
+            <select id="filterZone">
+                <option value="">All Zones</option>
+            </select>
+
+            <label for="filterPricing">Pricing</label>
+            <select id="filterPricing">
+                <option value="">All Pricing</option>
+            </select>
+
+            <label for="filterTankSize">Tank Size</label>
+            <select id="filterTankSize">
+                <option value="">All Sizes</option>
+            </select>
+        </div>
+
+        <!-- Stats -->
+        <div class="sidebar-section" id="statsPanel">
+            <h3>Summary</h3>
+            <div class="stat-row"><span>Total Locations</span><strong id="statTotal">0</strong></div>
+            <div class="stat-row"><span>Active</span><strong id="statActive">0</strong></div>
+            <div class="stat-row"><span>Mapped (GPS)</span><strong id="statMapped">0</strong></div>
+            <div class="stat-row"><span>Need Coordinates</span><strong id="statUnmapped">0</strong></div>
+            <div class="stat-row"><span>Showing</span><strong id="statShowing">0</strong></div>
+            <div class="stat-row" id="lastUploadRow" style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd;">
+                <span>Last Upload</span><strong id="statLastUpload">—</strong>
+            </div>
+        </div>
+
+        <!-- Unmapped customers list -->
+        <div class="sidebar-section" id="unmappedPanel" style="display:none">
+            <h3>Place on Map</h3>
+            <p class="help-text">Click a customer, then click on the map to set their location.</p>
+            <ul id="unmappedList"></ul>
+        </div>
+
+        <!-- Customer list -->
+        <div class="sidebar-section">
+            <h3>Customers <span id="customerCount"></span></h3>
+            <ul id="customerList"></ul>
+        </div>
+    </aside>
+
+    <!-- Map -->
+    <div id="map"></div>
+</div>
+
+<!-- Legend -->
+<div id="mapLegend">
+    <div class="legend-title">Customer Type</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#4caf50"></span> Residential - Bulk</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#2196f3"></span> Residential - 100lb</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#03a9f4"></span> Residential - Other</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ff9800"></span> Commercial - Bulk</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ff5722"></span> Commercial - Other</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#9c27b0"></span> Forklift</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#999"></span> Other</div>
+</div>
+
+<!-- Add/Edit Customer Modal -->
+<div id="customerModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add Customer</h2>
+            <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <form id="customerForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Account #</label>
+                    <input type="text" name="account" />
+                </div>
+                <div class="form-group">
+                    <label>Location #</label>
+                    <input type="text" name="location_number" />
+                </div>
+                <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" name="last_name" required />
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" name="first_name" />
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" name="address" />
+                </div>
+                <div class="form-group">
+                    <label>Address 2</label>
+                    <input type="text" name="address2" />
+                </div>
+                <div class="form-group">
+                    <label>City</label>
+                    <input type="text" name="city" />
+                </div>
+                <div class="form-group">
+                    <label>ZIP</label>
+                    <input type="text" name="zip" />
+                </div>
+                <div class="form-group">
+                    <label>Zone</label>
+                    <input type="text" name="zone" />
+                </div>
+                <div class="form-group">
+                    <label>Customer Type</label>
+                    <input type="text" name="customer_type" placeholder="e.g. Residential- Bulk" />
+                </div>
+                <div class="form-group">
+                    <label>Phone(s)</label>
+                    <input type="text" name="phones" />
+                </div>
+                <div class="form-group">
+                    <label>Phone Labels</label>
+                    <input type="text" name="phone_descriptions" placeholder="e.g. CELL, HOME" />
+                </div>
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" name="latitude" step="any" />
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" name="longitude" step="any" />
+                </div>
+                <div class="form-group">
+                    <label>Actual Tank Size</label>
+                    <input type="text" name="actual_tank_sizes" />
+                </div>
+                <div class="form-group">
+                    <label>LP Tank Size</label>
+                    <input type="text" name="lp_tank_sizes" />
+                </div>
+                <div class="form-group">
+                    <label>Serial Number</label>
+                    <input type="text" name="serial_number" />
+                </div>
+                <div class="form-group">
+                    <label>Company Owned</label>
+                    <select name="company_owned_tanks">
+                        <option value="">—</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Delivery Status</label>
+                    <input type="text" name="delivery_status" placeholder="e.g. Automatic, Will Call" />
+                </div>
+                <div class="form-group">
+                    <label>Last Delivery Date</label>
+                    <input type="date" name="last_delivery_date" />
+                </div>
+                <div class="form-group full-width">
+                    <label>Driver Instructions</label>
+                    <textarea name="driver_instructions" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" id="btnDeleteCustomer" class="btn-danger" style="display:none">Delete</button>
+                <div class="form-actions-right">
+                    <button type="button" id="btnCancelModal" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Place-mode banner -->
+<div id="placeBanner" style="display:none">
+    <span id="placeBannerText">Click on the map to place: <strong id="placeName"></strong></span>
+    <button id="placeCancelBtn">Cancel</button>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/popup.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
