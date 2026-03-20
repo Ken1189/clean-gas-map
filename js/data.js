@@ -105,8 +105,8 @@ const DataStore = (() => {
                 .range(from, from + PAGE - 1);
 
             if (error) {
-                console.error('Load error:', error);
-                alert('Failed to load data from database: ' + error.message);
+                console.error('Load error:', JSON.stringify(error));
+                alert('Failed to load data from database: ' + (error.message || JSON.stringify(error)));
                 return [];
             }
 
