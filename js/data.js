@@ -89,21 +89,36 @@ const DataStore = (() => {
         return row;
     }
 
-    // ===== Load all from Supabase =====
+    // ===== Load all from Supabase (paginated to get past 1000 limit) =====
     async function load() {
         init();
-        const { data, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('account', { ascending: true });
+        const PAGE = 1000;
+        let allRows = [];
+        let from = 0;
+        let keepGoing = true;
 
-        if (error) {
-            console.error('Load error:', error);
-            alert('Failed to load data from database: ' + error.message);
-            return [];
+        while (keepGoing) {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .order('account', { ascending: true })
+                .range(from, from + PAGE - 1);
+
+            if (error) {
+                console.error('Load error:', error);
+                alert('Failed to load data from database: ' + error.message);
+                return [];
+            }
+
+            allRows = allRows.concat(data || []);
+            if (!data || data.length < PAGE) {
+                keepGoing = false;
+            } else {
+                from += PAGE;
+            }
         }
 
-        customers = (data || []).map(enrichRow);
+        customers = allRows.map(enrichRow);
         cacheLoaded = true;
         return customers;
     }
