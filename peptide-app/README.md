@@ -16,7 +16,7 @@ It is a safety companion, not a dosing tool: it never recommends a dose.
 | **Clinician summary** | A one-tap text summary of doses, readings, symptoms and flags to share with a clinician (WhatsApp/SMS via the share sheet). |
 | **Privacy** | All data stays on the phone (localStorage). Backup download and delete-all are built in. |
 
-Built for African conditions: no build step, about 40 KB, works offline after the first load, installs to the home screen, and works on low-end Android.
+Built for African conditions: no build step, under 100 KB, works offline after the first load, installs to the home screen, and works on low-end Android.
 
 ## Run it
 
