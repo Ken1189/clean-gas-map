@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f5e57">
+  <meta name="description" content="Use peptide medicines more safely: dose log, side-effect checker, health check-ins and fake-product checks. Built for Africa.">
+  <title>PeptiSafe Africa</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Runtime config. Set shenTokenUrl to switch from demo scans to Shen.AI.
+    window.PEPTISAFE_CONFIG = { shenTokenUrl: '', shenSdkUrl: '' };
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icon.svg" alt="" width="28" height="28"> PeptiSafe <span>Africa</span></div>
+    <div id="offline" class="pill" hidden>Offline</div>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <nav class="tabs" id="tabs" aria-label="Main">
+    <button data-tab="home"><span aria-hidden="true">●</span>Home</button>
+    <button data-tab="checkin"><span aria-hidden="true">♥</span>Check-in</button>
+    <button data-tab="doses"><span aria-hidden="true">✚</span>Doses</button>
+    <button data-tab="verify"><span aria-hidden="true">✓</span>Verify</button>
+    <button data-tab="learn"><span aria-hidden="true">i</span>Learn</button>
+    <button data-tab="me"><span aria-hidden="true">☰</span>Me</button>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

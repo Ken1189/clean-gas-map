@@ -1,0 +1,12 @@
+{
+  "name": "PeptiSafe Africa",
+  "short_name": "PeptiSafe",
+  "description": "Use peptide medicines more safely: dose log, side-effect checker, health check-ins and fake-product checks.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#0f5e57",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
