@@ -187,11 +187,9 @@ export function assess({ profile = {}, vitals = null, weights = [], regimen = nu
   if (regimen && regimen.source) {
     const src = SOURCES.find((s) => s.id === regimen.source);
     if (src && src.risk === 'high') {
-      add('caution', 'source:high', 'High risk of a fake or contaminated product',
-        'Products from online shops, gyms, salons or friends are often fake or contaminated. Use the Verify tab to check your product.');
+      add('caution', 'source:high', 'High risk of a fake or contaminated product', src.warning);
     } else if (src && src.risk === 'medium') {
-      add('caution', 'source:compounded', 'Compounded product',
-        'Compounded GLP-1 products have been seized and recalled in some African markets. Check that your pharmacy is licensed, and be extra careful with dose units.');
+      add('caution', `source:${src.id}`, src.id === 'cross_border' ? 'Imported product: check it stayed cold' : 'Compounded product', src.warning);
     }
   }
 

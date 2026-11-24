@@ -110,3 +110,19 @@ test('nextDueDate', () => {
   assert.equal(nextDueDate(daysAgo(7), 'weekly').getTime(), NOW);
   assert.equal(nextDueDate(daysAgo(7), 'unknown'), null);
 });
+
+test('Zimbabwe sources: cross-border import warns about cold chain, beauty clinic is high risk', () => {
+  const xb = assess({ profile: {}, regimen: { peptideId: 'semaglutide', source: 'cross_border' }, now: NOW });
+  const a = xb.alerts.find((x) => x.code === 'source:cross_border');
+  assert.ok(a);
+  assert.match(a.detail, /cold/);
+  const bc = assess({ profile: {}, regimen: { peptideId: 'semaglutide', source: 'beauty_clinic' }, now: NOW });
+  assert.match(bc.alerts.find((x) => x.code === 'source:high').detail, /licence/);
+});
+
+test('every non-low-risk source has warning text', async () => {
+  const { SOURCES, COUNTRIES, DEFAULT_COUNTRY } = await import('../js/data.js');
+  for (const s of SOURCES.filter((x) => x.risk !== 'low')) assert.ok(s.warning, s.id);
+  assert.equal(DEFAULT_COUNTRY, 'ZW');
+  assert.equal(Object.keys(COUNTRIES)[0], 'ZW');
+});

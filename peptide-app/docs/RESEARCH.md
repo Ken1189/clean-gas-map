@@ -40,9 +40,9 @@ The App Store has dozens of GLP-1 and peptide trackers (PepTrack, Injex, Regimen
 | Phase | Scope |
 |---|---|
 | **0: Prototype (this repo)** | PWA, safety engine + tests, demo scan, dose log, verify, clinician summary. |
-| **1: Pilot (6–8 wks)** | Wire the Shen Web SDK and token backend. Clinical advisor review of all rules. Languages: English, isiZulu, Afrikaans, Swahili, Yoruba, Hausa, French. Dose reminders (push + SMS fallback). WhatsApp share. Pilot with 1 pharmacy group or telehealth clinic in South Africa. |
+| **1: Pilot (6–8 wks)** | Wire the Shen Web SDK and token backend. Clinical advisor review of all rules. Languages: English, Shona and Ndebele first. Dose reminders (push + SMS fallback). WhatsApp share. Pilot in **Zimbabwe** (see `ZIMBABWE.md`) with pharmacies and a diabetes practice in Harare. |
 | **2: Clinician portal** | Opt-in encrypted sync (Supabase in an af-south region), clinician dashboard with flags, pharmacy-verified prescriptions, batch-number scan (barcode/QR) against regulator data where available. |
-| **3: Native + scale** | Flutter app with the Shen mobile SDK, offline scans, Nigeria and Kenya launches, medical-scheme partnerships. |
+| **3: Native + scale** | Flutter app with the Shen mobile SDK, offline scans, South Africa, then Nigeria and Kenya launches, medical-scheme partnerships. |
 
 ## 6. Launch blockers (must do before real users)
 

@@ -2,7 +2,19 @@
 // IMPORTANT: Regulatory status changes. Every entry here must be re-verified
 // against the national regulator's register before launch (see docs/RESEARCH.md).
 
+// Launch market first: the onboarding country list follows this object's order.
+export const DEFAULT_COUNTRY = 'ZW';
+
 export const COUNTRIES = {
+  ZW: {
+    name: 'Zimbabwe',
+    emergency: '999 · 994 (ambulance) · 112 (Econet) · 114 (NetOne)',
+    regulator: 'MCAZ (Medicines Control Authority of Zimbabwe)',
+    regulatorUrl: 'https://www.mcaz.co.zw',
+    reportSideEffect: 'Report side effects and suspected fakes to MCAZ (mcaz@mcaz.co.zw or mcaz.co.zw), or ask your pharmacist or clinic to send an ADR report. Report unlicensed sellers, salons or clinics to the Health Professions Authority (hpa.co.zw).',
+    verifyTip: 'MCAZ and the Health Professions Authority have warned that "skinny jabs" (Ozempic) are being sold illegally on social media and in unlicensed beauty clinics, and that fakes are circulating. Selling prescription medicine without a licence is a criminal offence. Buy only from an MCAZ-licensed pharmacy with a prescription, and ask MCAZ whether the product is registered in Zimbabwe. If it came from South Africa, keep the receipt and check it was kept cold the whole way.',
+    currency: 'USD',
+  },
   ZA: {
     name: 'South Africa',
     emergency: '10177 (ambulance) · 112 from a mobile',
@@ -203,13 +215,20 @@ export const INJECTION_SITES = [
   { id: 'arm_r', label: 'Right upper arm' },
 ];
 
+const FAKE_RISK = 'Products from this kind of seller are often fake, the wrong strength or contaminated. Use the Verify tab to check your product.';
+
 export const SOURCES = [
   { id: 'pharmacy_rx', label: 'Licensed pharmacy, with prescription', risk: 'low' },
   { id: 'clinic', label: 'Doctor / clinic', risk: 'low' },
-  { id: 'compounding', label: 'Compounding pharmacy', risk: 'medium' },
-  { id: 'online', label: 'Online shop / social media', risk: 'high' },
-  { id: 'gym_salon', label: 'Gym, salon or friend', risk: 'high' },
-  { id: 'unknown', label: 'Not sure', risk: 'high' },
+  { id: 'cross_border', label: 'Brought from another country (e.g. South Africa)', risk: 'medium',
+    warning: 'Pens must stay cold. A long, hot trip (for example by bus or a runner) can ruin the medicine. Keep the foreign pharmacy receipt and prescription, and check the pack is genuine.' },
+  { id: 'compounding', label: 'Compounding pharmacy', risk: 'medium',
+    warning: 'Compounded GLP-1 products have been seized and recalled in some African markets. Check that your pharmacy is licensed, and be extra careful with dose units.' },
+  { id: 'online', label: 'Online shop / social media / WhatsApp', risk: 'high', warning: FAKE_RISK },
+  { id: 'beauty_clinic', label: 'Beauty, aesthetic or "slimming" clinic', risk: 'high',
+    warning: 'Regulators have warned about unlicensed beauty and slimming clinics selling injections. Ask to see their medicines licence and the practitioner\'s practising certificate. ' + FAKE_RISK },
+  { id: 'gym_salon', label: 'Gym, hair salon or friend', risk: 'high', warning: FAKE_RISK },
+  { id: 'unknown', label: 'Not sure', risk: 'high', warning: FAKE_RISK },
 ];
 
 export function peptideById(id) {

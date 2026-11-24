@@ -1,4 +1,4 @@
-import { COUNTRIES, PEPTIDES, CONDITIONS, SYMPTOMS, INJECTION_SITES, SOURCES, peptideById } from './data.js';
+import { COUNTRIES, DEFAULT_COUNTRY, PEPTIDES, CONDITIONS, SYMPTOMS, INJECTION_SITES, SOURCES, peptideById } from './data.js';
 import { assess, checkDose, suggestSite, nextDueDate, mgToVolume, LEVEL_TEXT, bmi, bmiCategory } from './safety.js';
 import { load, save, wipe, exportJson } from './storage.js';
 import { createVitalsProvider } from './shen.js';
@@ -93,7 +93,7 @@ function renderProfileForm(isOnboarding = false) {
     <p class="muted">We use this to check for risks. Only you can see it.</p>
     <form id="pf">
       <label for="country">Country</label>
-      <select id="country" required>${Object.entries(COUNTRIES).map(([k, c]) => `<option value="${k}" ${p.country === k ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      <select id="country" required>${Object.entries(COUNTRIES).map(([k, c]) => `<option value="${k}" ${(p.country || DEFAULT_COUNTRY) === k ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
       <div class="row">
         <div><label for="height">Height (cm)</label><input id="height" type="number" inputmode="decimal" min="100" max="250" required value="${esc(p.heightCm ?? '')}"></div>
         <div><label for="weight">Weight (kg)</label><input id="weight" type="number" inputmode="decimal" min="25" max="350" step="0.1" required value="${esc(w?.kg ?? '')}"></div>
@@ -309,7 +309,7 @@ function renderVerify() {
   const src = SOURCES.find((s) => s.id === state.regimen?.source);
   view.innerHTML = `
     <h1>Is my product real?</h1>
-    ${src && src.risk !== 'low' ? `<div class="alert ${src.risk === 'high' ? 'urgent' : 'caution'}"><b>Your source: ${esc(src.label)}</b>${src.risk === 'high' ? 'Products from this kind of source are often fake, the wrong strength, or contaminated.' : 'Compounded products are not checked the same way as registered medicines.'}</div>` : ''}
+    ${src && src.risk !== 'low' ? `<div class="alert ${src.risk === 'high' ? 'urgent' : 'caution'}"><b>Your source: ${esc(src.label)}</b>${esc(src.warning)}</div>` : ''}
     <div class="card">
       <h2 style="margin-top:0">${esc(c.name)}</h2>
       <p>${esc(c.verifyTip)}</p>
@@ -320,10 +320,10 @@ function renderVerify() {
       ${[
         'Bought from a licensed pharmacy, with a prescription',
         'Pack shows a registration number, batch number and expiry date',
-        'Pen or vial was kept cold (fridge) before you got it',
+        'Pen or vial was kept cold (fridge) before you got it, including on any trip across the border',
         'Seal not broken; liquid is clear and colourless with no bits',
         'Pen label matches the box (fakes have been relabelled insulin pens)',
-        'Price is not suspiciously cheap',
+        'You got a receipt, and the price is close to a pharmacy price (fakes can be very cheap or very expensive)',
       ].map((t, i) => `<label class="check"><input type="checkbox" class="vc" id="vc${i}"> ${esc(t)}</label>`).join('')}
       <div id="vres" class="muted"></div>
     </div>
@@ -359,6 +359,15 @@ function renderLearn() {
         <li>Keep unopened pens and vials in the fridge (not the freezer).</li>
       </ul>
     </details>
+    <details class="card"><summary><b>Power cuts and keeping pens cold</b></summary>
+      <ul>
+        <li>Unopened pens and vials belong in the fridge (2–8 °C), never the freezer.</li>
+        <li>Most pens can be kept out of the fridge for a limited time once in use, as long as they stay below about 30 °C. The number of days is different for each product: read the leaflet and ask your pharmacist.</li>
+        <li>When a pen leaves the fridge, write the date on the box. Throw it away when its out-of-fridge time is up.</li>
+        <li>During long power cuts keep the fridge door shut. A cooler box with ice packs works for a short time, but wrap the pen so it does not touch the ice and freeze.</li>
+        <li>Do not use a pen that has frozen, got hot (for example, left in a car or kombi), or looks cloudy.</li>
+      </ul>
+    </details>
     <details class="card"><summary><b>About face-scan readings</b></summary>
       <p>The face scan estimates your vital signs from tiny colour changes in your skin. It is useful for spotting trends but it is not a medical device reading. If it shows high blood pressure, confirm with a cuff at a pharmacy or clinic.</p>
     </details>`;
@@ -385,7 +394,7 @@ function renderMe() {
     <h2>Share with your clinician</h2>
     <div class="card">
       <p class="muted">A summary of your doses, readings and side effects to show at your next visit.</p>
-      <button class="btn" id="share">Create summary</button>
+      <div class="btns"><button class="btn" id="wa">Send on WhatsApp</button><button class="btn secondary" id="share">Show / share</button></div>
       <pre id="sum" style="white-space:pre-wrap;font-size:13px" hidden></pre>
     </div>
     <h2>Your data</h2>
@@ -399,6 +408,11 @@ function renderMe() {
     const text = clinicianSummary();
     $('#sum').hidden = false; $('#sum').textContent = text;
     if (navigator.share) { try { await navigator.share({ title: 'PeptiSafe summary', text }); } catch { /* cancelled */ } }
+  };
+  // WhatsApp is how most people reach their doctor or pharmacist in Zimbabwe.
+  // wa.me opens the app with the text ready; the user picks the contact.
+  $('#wa').onclick = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(clinicianSummary())}`, '_blank', 'noopener');
   };
   $('#exp').onclick = () => {
     const a = document.createElement('a');
