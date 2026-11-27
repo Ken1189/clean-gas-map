@@ -7,7 +7,7 @@ It is a safety companion, not a dosing tool: it never recommends a dose.
 
 | Area | What the user gets |
 |---|---|
-| **Health check-in** | Shen.AI-style 30-second face scan (heart rate, blood pressure, HRV) or manual entry from a cuff and scale, plus a symptom checklist. |
+| **Health check-in** | Shen.AI face scan (heart rate, blood pressure, HRV, breathing rate), a photo of a pharmacy BP machine, or manual entry, plus a symptom checklist. Cuff readings can calibrate future face scans. |
 | **Safety engine** | BMI and weight-trend rules, blood pressure and heart rate thresholds, GLP-1 contraindications (thyroid cancer/MEN2, pregnancy, pancreatitis, type 1 diabetes, eating disorders), hypoglycaemia risk with insulin or sulfonylureas, dehydration combos, red-flag symptoms. Each result gets one of five levels, from *All clear* to *Emergency*, with the country's emergency number. |
 | **Dose log** | Logs the prescribed dose and catches double doses (weekly < 72 h, daily < 20 h), more-than-double jumps (mg/mL/unit slips), unit changes and repeated injection sites. Suggests the next injection site. |
 | **Vial converter** | Turns a *prescribed* mg dose and vial strength into mL and U-100 syringe units, with sanity warnings. |
@@ -28,13 +28,16 @@ npm test           # safety-engine unit tests (node:test, no dependencies)
 
 The camera needs `localhost` or HTTPS.
 
-## Turning on real Shen.AI scans
+## Shen.AI face scan
 
-Scans run in **demo mode** (simulated values, clearly labelled) until Shen.AI is wired in. See the steps at the top of `js/shen.js`. In short:
+The app integrates the real Shen.AI Web SDK. It does face scans, calibration against a cuff reading, and reading the numbers off a photo of a BP machine. Without a licence key it falls back to a labelled demo scan.
 
-1. Get a **Web** licence key from Shen.AI (a mobile key fails on web).
-2. Add a backend endpoint that mints short-lived Shen tokens. The permanent key never goes to the browser.
-3. Self-host the Web SDK, set `shenTokenUrl` and `shenSdkUrl` in `index.html`, and complete `startShen()`.
+```bash
+npm run shen:install                                  # SDK into node_modules (never committed)
+SHEN_API_KEY=<your WEB key> npm run start:shen        # local test only
+```
+
+See `docs/SHEN.md` for what it does, what was tested, and what to do before a pilot (short-lived tokens, Zimbabwe validation, device limits).
 
 ## Layout
 
@@ -44,11 +47,13 @@ peptide-app/
   js/app.js       UI (tabs: Home, Check-in, Doses, Verify, Learn, Me)
   js/safety.js    pure safety rules (no DOM), unit tested
   js/data.js      countries, peptides, symptoms, conditions, sites
-  js/shen.js      vitals provider (demo / Shen.AI)
+  js/shen.js      vitals provider (Shen.AI Web SDK / demo)
   js/storage.js   on-device storage
   tests/          node:test suite
   docs/RESEARCH.md  market scan, Shen.AI notes, regulation, roadmap
   docs/ZIMBABWE.md  launch plan for the first market
+  docs/SHEN.md      Shen.AI integration and setup
+  docs/COMPETITORS.md  competitor and rPPG vendor research
 ```
 
 ## Before any public launch

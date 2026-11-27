@@ -10,8 +10,12 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
   <script>
-    // Runtime config. Set shenTokenUrl to switch from demo scans to Shen.AI.
-    window.PEPTISAFE_CONFIG = { shenTokenUrl: '', shenSdkUrl: '' };
+    // Runtime config. Falls back to a labelled demo scan if the SDK or licence is missing.
+    window.PEPTISAFE_CONFIG = {
+      shenSdkUrl: 'vendor/shenai-sdk/index.mjs',  // served by server.js after npm run shen:install
+      shenTokenUrl: 'api/shen-token',              // licence credential from the server
+      shenPreset: '60s',                           // '60s' = most reliable BP, '30s' = quicker
+    };
   </script>
 </head>
 <body>

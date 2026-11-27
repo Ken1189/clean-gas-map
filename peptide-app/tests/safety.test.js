@@ -126,3 +126,14 @@ test('every non-low-risk source has warning text', async () => {
   assert.equal(DEFAULT_COUNTRY, 'ZW');
   assert.equal(Object.keys(COUNTRIES)[0], 'ZW');
 });
+
+test('Shen.AI results map onto the app vitals shape', async () => {
+  const { mapResults } = await import('../js/shen.js');
+  const v = mapResults({
+    heart_rate_bpm: 71.6, hrv_sdnn_ms: 42.2, breathing_rate_bpm: 14.4,
+    systolic_blood_pressure_mmhg: 128.4, diastolic_blood_pressure_mmhg: 81.2,
+    average_signal_quality: 0.83, quality_metrics: { expected_sbp_mean_abs_error_mmHg: 9.6 }, heartbeats: [],
+  });
+  assert.deepEqual(v, { heartRate: 72, systolic: 128, diastolic: 81, hrv: 42, breathingRate: 14, signalQuality: 0.83, bpExpectedErrorMmHg: 10, demo: false, source: 'shen' });
+  assert.equal(mapResults({ heart_rate_bpm: 60, systolic_blood_pressure_mmhg: null, diastolic_blood_pressure_mmhg: null, heartbeats: [] }).systolic, null);
+});

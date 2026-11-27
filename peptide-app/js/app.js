@@ -1,13 +1,14 @@
 import { COUNTRIES, DEFAULT_COUNTRY, PEPTIDES, CONDITIONS, SYMPTOMS, INJECTION_SITES, SOURCES, peptideById } from './data.js';
 import { assess, checkDose, suggestSite, nextDueDate, mgToVolume, LEVEL_TEXT, bmi, bmiCategory } from './safety.js';
 import { load, save, wipe, exportJson } from './storage.js';
-import { createVitalsProvider } from './shen.js';
+import { createVitalsProvider, SHEN_DOWNLOAD_MB } from './shen.js';
 
 let state = load();
 let tab = 'home';
 const view = document.getElementById('view');
 const tabs = document.getElementById('tabs');
-const provider = createVitalsProvider();
+const CONFIG = window.PEPTISAFE_CONFIG || {};
+const provider = await createVitalsProvider();
 
 // ---------- helpers ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -122,6 +123,7 @@ function renderProfileForm(isOnboarding = false) {
       hasPrescriber: view.querySelector('input[name=rx]:checked').value === 'yes',
       conditions: [...view.querySelectorAll('input[name=cond]:checked')].map((i) => i.value),
       consentAt: p.consentAt || new Date().toISOString(),
+      anonId: p.anonId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
     };
     state.regimen = { ...r, peptideId: $('#peptide').value, source: $('#source').value };
     if (kg && (!w || Number(w.kg) !== kg)) state.weights.push({ date: new Date().toISOString(), kg });
@@ -161,17 +163,22 @@ function renderHome() {
 // ---------- check-in ----------
 function renderCheckin() {
   const lastW = latest(state.weights);
+  const shen = provider.mode === 'shen';
   view.innerHTML = `
     <h1>Health check-in</h1>
     <div class="card">
       <h2 style="margin-top:0">Face scan</h2>
-      <p class="muted">${provider.mode === 'demo'
-        ? 'Demo mode: shows how the Shen.AI face scan will work. The numbers are made up.'
-        : 'A 30-second face scan estimates heart rate, blood pressure and HRV.'}
-        Sit still in good light, face the camera.</p>
+      <p class="muted">${shen
+        ? `A ${CONFIG.shenPreset === '30s' ? '30' : '60'}-second face scan by Shen.AI estimates heart rate, blood pressure, HRV and breathing rate. Rest the phone on something, face a window or lamp, and keep still.`
+        : `Demo mode: the numbers are made up. ${esc(provider.reason || '')}`}</p>
       <div class="scan-box" id="scanbox" hidden></div>
       <div class="progress" id="prog" hidden><div></div></div>
+      <p class="muted" id="scanstat" aria-live="polite"></p>
       <button class="btn" id="scan">Start face scan</button>
+      ${provider.canReadBpPhoto ? `
+        <label class="btn secondary" for="bpphoto" style="cursor:pointer">Photo of a BP machine</label>
+        <input type="file" id="bpphoto" accept="image/*" capture="environment" hidden>
+        <p class="muted">At a pharmacy? Take a photo of the blood pressure machine's screen and we will read the numbers.</p>` : ''}
     </div>
     <form id="vf" class="card">
       <h2 style="margin-top:0">Readings</h2>
@@ -184,46 +191,88 @@ function renderCheckin() {
         <div><label for="hr">Resting heart rate</label><input id="hr" type="number" inputmode="numeric" min="30" max="220"></div>
         <div><label for="kg">Weight (kg)</label><input id="kg" type="number" inputmode="decimal" step="0.1" min="25" max="350" placeholder="${esc(lastW?.kg ?? '')}"></div>
       </div>
-      <input type="hidden" id="hrv"><input type="hidden" id="src" value="manual"><input type="hidden" id="demo" value="">
+      <p class="muted" id="scaninfo"></p>
+      ${provider.canCalibrate ? `<label class="check"><input type="checkbox" id="cal"> These blood pressure numbers are from a cuff machine. Use them to make my face scans more accurate.</label>` : ''}
       <h2>Any symptoms in the last 3 days?</h2>
       ${SYMPTOMS.map((s) => `<label class="check"><input type="checkbox" name="sym" value="${s.id}" ${recentSymptoms().includes(s.id) ? 'checked' : ''}> ${esc(s.label)}</label>`).join('')}
       <button class="btn" type="submit">Save and check</button>
     </form>
     <div id="result"></div>`;
 
+  // Values from the last scan; source is 'shen' (face scan), 'cuff' (BP machine) or 'manual'.
+  let reading = { source: 'manual' };
+  const status = (t) => { $('#scanstat').textContent = t || ''; };
+  const fill = (r) => {
+    $('#sys').value = r.systolic ?? ''; $('#dia').value = r.diastolic ?? ''; $('#hr').value = r.heartRate ?? '';
+  };
+
   $('#scan').onclick = async () => {
+    if (provider.needsDownload() && !confirm(`The first face scan downloads about ${SHEN_DOWNLOAD_MB} MB. Use Wi-Fi if you can. Continue?`)) return;
     const box = $('#scanbox'); const prog = $('#prog');
     box.hidden = false; prog.hidden = false; $('#scan').disabled = true;
-    const oval = document.createElement('div'); oval.className = 'scan-oval';
     try {
-      const resP = provider.scan(box, (p) => { prog.firstElementChild.style.width = `${Math.round(p * 100)}%`; });
-      box.appendChild(oval);
+      const resP = provider.scan(box, (p) => { prog.firstElementChild.style.width = `${Math.round(p * 100)}%`; },
+        { userId: state.profile.anonId, onStatus: status });
+      if (!shen) { const oval = document.createElement('div'); oval.className = 'scan-oval'; box.appendChild(oval); }
       const r = await resP;
-      $('#sys').value = r.systolic ?? ''; $('#dia').value = r.diastolic ?? ''; $('#hr').value = r.heartRate ?? '';
-      $('#hrv').value = r.hrv ?? ''; $('#src').value = 'shen'; $('#demo').value = r.demo ? '1' : '';
+      fill(r);
+      reading = { ...r };
+      const parts = [];
+      if (r.breathingRate) parts.push(`Breathing ${r.breathingRate}/min`);
+      if (r.hrv) parts.push(`HRV ${r.hrv} ms`);
+      if (r.bpExpectedErrorMmHg) parts.push(`BP estimate ±${r.bpExpectedErrorMmHg} mmHg`);
+      $('#scaninfo').textContent = parts.join(' · ');
       box.innerHTML = `<div class="scan-nocam">Scan complete${r.demo ? ' (demo values)' : ''}. Check the numbers below, then save.</div>`;
+      status('');
     } catch (err) {
       box.innerHTML = `<div class="scan-nocam">${esc(err.message)}</div>`;
+      status('');
     } finally {
       $('#scan').disabled = false; $('#scan').textContent = 'Scan again';
     }
   };
 
-  // A reading the user types or corrects by hand is a manual reading, not a scan.
-  ['#sys', '#dia', '#hr'].forEach((id) => ($(id).oninput = () => { $('#src').value = 'manual'; $('#demo').value = ''; }));
+  if (provider.canReadBpPhoto) {
+    $('#bpphoto').onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      status('Reading the machine…');
+      try {
+        const r = await provider.readBpPhoto(file, { userId: state.profile.anonId, onStatus: status });
+        fill(r);
+        reading = { ...r, source: 'cuff', demo: false };
+        status(`Read ${r.systolic}/${r.diastolic}${r.heartRate ? `, pulse ${r.heartRate}` : ''}. Check the numbers match the screen.`);
+      } catch (err) { status(err.message); }
+      e.target.value = '';
+    };
+  }
 
-  $('#vf').onsubmit = (e) => {
+  // A reading the user types or corrects by hand is a manual reading, not a scan.
+  ['#sys', '#dia', '#hr'].forEach((id) => ($(id).oninput = () => { reading = { source: reading.source === 'cuff' ? 'cuff' : 'manual' }; }));
+
+  $('#vf').onsubmit = async (e) => {
     e.preventDefault();
     const now = new Date().toISOString();
     const num = (id) => ($(id).value === '' ? null : Number($(id).value));
-    const entry = { date: now, source: $('#src').value, systolic: num('#sys'), diastolic: num('#dia'), heartRate: num('#hr'), hrv: num('#hrv'), weightKg: num('#kg'), demo: !!$('#demo').value };
+    const entry = {
+      date: now, source: reading.source, demo: !!reading.demo,
+      systolic: num('#sys'), diastolic: num('#dia'), heartRate: num('#hr'), weightKg: num('#kg'),
+      hrv: reading.hrv ?? null, breathingRate: reading.breathingRate ?? null, bpExpectedErrorMmHg: reading.bpExpectedErrorMmHg ?? null,
+    };
     if (entry.systolic || entry.heartRate || entry.weightKg) state.vitals.push(entry);
     if (entry.weightKg) state.weights.push({ date: now, kg: entry.weightKg });
     const ids = [...view.querySelectorAll('input[name=sym]:checked')].map((i) => i.value);
     if (ids.length) state.symptoms.push({ date: now, ids });
     persist();
+    let calNote = '';
+    if ($('#cal')?.checked && entry.source !== 'shen' && entry.systolic && entry.diastolic) {
+      try {
+        const ok = await provider.calibrate({ systolic: entry.systolic, diastolic: entry.diastolic, heartRate: entry.heartRate });
+        calNote = ok ? '<div class="alert info"><b>Face scan calibrated</b>Future face scans will use this cuff reading to improve blood pressure estimates.</div>'
+          : '<div class="alert caution"><b>Calibration not saved</b>Do a face scan first, then take the cuff reading straight after.</div>';
+      } catch { calNote = '<div class="alert caution"><b>Calibration not saved</b>Try again after a face scan.</div>'; }
+    }
     const a = currentAssessment();
-    $('#result').innerHTML = `<h2>Result</h2>${statusHtml(a.level)}${alertsHtml(a.alerts)}`;
+    $('#result').innerHTML = `<h2>Result</h2>${statusHtml(a.level)}${calNote}${alertsHtml(a.alerts)}`;
     $('#result').scrollIntoView({ behavior: 'smooth' });
   };
 }
@@ -402,7 +451,7 @@ function renderMe() {
       <p class="muted">Everything is stored only on this phone.</p>
       <div class="btns"><button class="btn secondary" id="exp">Download backup</button><button class="btn danger" id="del">Delete all data</button></div>
     </div>
-    <p class="disclaimer">PeptiSafe Africa v0.1 · prototype · face-scan mode: ${provider.mode}</p>`;
+    <p class="disclaimer">PeptiSafe Africa v0.1 · prototype · face scan: ${provider.mode === 'shen' ? 'Shen.AI' : `demo (${esc(provider.reason || '')})`}</p>`;
   $('#edit').onclick = () => renderProfileForm(false);
   $('#share').onclick = async () => {
     const text = clinicianSummary();
@@ -438,7 +487,7 @@ function clinicianSummary() {
     .forEach((d) => lines.push(`  ${fmtDate(d.date)}  ${peptideById(d.peptideId).name} ${d.amount} ${d.unit}  (${INJECTION_SITES.find((s) => s.id === d.siteId)?.label ?? ''})`));
   lines.push('', 'Recent readings:');
   [...state.vitals].sort((x, y) => new Date(y.date) - new Date(x.date)).slice(0, 8)
-    .forEach((v) => lines.push(`  ${fmtDate(v.date)}  BP ${v.systolic ?? '–'}/${v.diastolic ?? '–'}  HR ${v.heartRate ?? '–'}  wt ${v.weightKg ?? '–'}  ${v.source === 'shen' ? (v.demo ? '[demo scan]' : '[face scan]') : '[manual]'}`));
+    .forEach((v) => lines.push(`  ${fmtDate(v.date)}  BP ${v.systolic ?? '–'}/${v.diastolic ?? '–'}  HR ${v.heartRate ?? '–'}  wt ${v.weightKg ?? '–'}  ${v.source === 'shen' ? (v.demo ? '[demo scan]' : '[face scan]') : v.source === 'cuff' ? '[BP machine]' : '[manual]'}`));
   lines.push('', 'Symptoms (last 3 days): ' + (recentSymptoms().map((id) => SYMPTOMS.find((s) => s.id === id)?.label).join('; ') || 'none'));
   lines.push('', 'Flags: ' + (a.alerts.filter((x) => x.level !== 'info').map((x) => x.title).join('; ') || 'none'));
   return lines.join('\n');

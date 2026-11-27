@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "shen:install": "npm install --no-save @shenai/sdk@3.2.0",
+    "start:shen": "SHEN_KEY_PASSTHROUGH=1 node server.js"
   }
 }

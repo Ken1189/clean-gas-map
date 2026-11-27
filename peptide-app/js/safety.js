@@ -93,7 +93,7 @@ export function assess({ profile = {}, vitals = null, weights = [], regimen = nu
     const hr = Number(vitals.heartRate);
 
     if (sys >= 180 || dia >= 120) {
-      add('urgent', 'bp:crisis', `Very high blood pressure (${sys}/${dia})`,
+      add('urgent', 'bp:crisis', `${estimated ? 'Face scan suggests very' : 'Very'} high blood pressure (${sys}/${dia})`,
         'Sit quietly for 5 minutes and measure again. If it is still this high, or you have chest pain, headache, weakness or vision changes, get care now.' + confirmNote);
     } else if (sys >= 140 || dia >= 90) {
       add('clinician', 'bp:high', `High blood pressure (${sys}/${dia})`,

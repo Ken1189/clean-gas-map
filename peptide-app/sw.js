@@ -1,5 +1,5 @@
 // Offline-first service worker: the whole app works without data after the first visit.
-const CACHE = 'peptisafe-v2';
+const CACHE = 'peptisafe-v3';
 const ASSETS = [
   './', 'index.html', 'css/styles.css', 'manifest.webmanifest', 'icon.svg',
   'js/app.js', 'js/data.js', 'js/safety.js', 'js/storage.js', 'js/shen.js',
